@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SimpLang — live playground</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23000000'/%3E%3Ctext x='50' y='68' font-size='58' text-anchor='middle' fill='%23F2F0EB' font-family='monospace'%3E%3C/%3E%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --black:#000000;
+    --panel:#000000;
+    --line:#2b2b28;
+    --line-soft:#1a1a18;
+    --fg:#f2f0eb;
+    --dim:#7d7d76;
+    --amber:#ff0000;
+    --amber-dim:#7a0000;
+    --red:#ffb454;
+    --code-bg:#000000;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:var(--black);
+    color:var(--fg);
+    font-family:'JetBrains Mono',monospace;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .app{
+    max-width:1400px;
+    margin:0 auto;
+    padding:32px 24px 64px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+  }
+
+  header{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:20px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:22px;
+  }
+  .brand{display:flex;flex-direction:column;gap:8px;}
+  .brand h1{
+    margin:0;
+    font-size:clamp(24px,3.6vw,34px);
+    font-weight:700;
+    line-height:1;
+    letter-spacing:-.01em;
+  }
+  .brand h1 .bracket{color:var(--dim);font-weight:400;}
+  .brand p{
+    margin:0;
+    color:var(--dim);
+    font-size:13.5px;
+    max-width:52ch;
+  }
+  .controls{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  select, button{
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+    border-radius:0;
+    border:1px solid var(--line);
+    padding:10px 14px;
+    background:var(--black);
+    color:var(--fg);
+    cursor:pointer;
+  }
+  select:hover, button:hover{border-color:var(--fg);}
+  select:focus-visible, button:focus-visible, textarea:focus-visible{
+    outline:1px solid var(--amber);
+    outline-offset:2px;
+  }
+  button.run{
+    background:var(--amber);
+    color:#fff;
+    border-color:var(--amber);
+    font-weight:700;
+  }
+  button.run:hover{background:#ff3322;}
+
+  main{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:1px;
+    align-items:stretch;
+    background:var(--line);
+    border:1px solid var(--line);
+  }
+  @media (max-width:900px){
+    main{grid-template-columns:1fr;}
+  }
+
+  .pane{
+    background:var(--black);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    min-height:460px;
+  }
+  .pane-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+    font-size:12px;
+    color:var(--dim);
+  }
+
+  .editor-wrap{
+    flex:1;
+    display:flex;
+    background:var(--code-bg);
+    overflow:hidden;
+  }
+  .gutter{
+    font-family:'JetBrains Mono',monospace;
+    font-size:14px;
+    line-height:1.6;
+    color:var(--line);
+    text-align:right;
+    padding:14px 10px 14px 0;
+    user-select:none;
+    overflow:hidden;
+    white-space:pre;
+  }
+  textarea{
+    flex:1;
+    resize:none;
+    border:none;
+    background:transparent;
+    color:var(--fg);
+    font-family:'JetBrains Mono',monospace;
+    font-size:14px;
+    line-height:1.6;
+    padding:14px 16px 14px 8px;
+    tab-size:4;
+  }
+
+  .output-frame{
+    flex:1;
+    background:#fff;
+    display:flex;
+  }
+  iframe{
+    flex:1;
+    border:none;
+    width:100%;
+    background:#fff;
+  }
+
+  .status{
+    font-size:13px;
+    padding:10px 14px;
+    border:1px solid var(--line);
+    background:var(--black);
+    color:var(--dim);
+  }
+  .status.ok{color:var(--amber);border-color:var(--amber-dim);}
+  .status.err{color:var(--red);border-color:var(--red);}
+
+  details{
+    border:1px solid var(--line);
+    background:var(--black);
+    padding:0;
+  }
+  summary{
+    cursor:pointer;
+    padding:14px 16px;
+    font-weight:700;
+    font-size:13.5px;
+    list-style:none;
+  }
+  summary::-webkit-details-marker{display:none;}
+  summary::before{content:"+ ";color:var(--amber);}
+  details[open] summary::before{content:"– ";}
+  .ref-body{
+    padding:0 16px 18px;
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+    gap:10px 22px;
+    border-top:1px solid var(--line-soft);
+    padding-top:14px;
+  }
+  .ref-item code{
+    font-family:'JetBrains Mono',monospace;
+    color:var(--fg);
+    font-size:13px;
+  }
+  .ref-item p{
+    margin:2px 0 0;
+    color:var(--dim);
+    font-size:12.5px;
+  }
+
+  .deploy{
+    color:var(--dim);
+    font-size:13px;
+    line-height:1.7;
+  }
+  .deploy code{
+    font-family:'JetBrains Mono',monospace;
+    background:var(--line-soft);
+    padding:2px 6px;
+    color:var(--fg);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <h1><span class="bracket">&lt;</span>simplang<span class="bracket">/&gt;</span></h1>
+      <p>Write SimpLang, run it, see the page it builds. This whole tool is one HTML file — host it anywhere.</p>
+    </div>
+    <div class="controls">
+      <select id="examples">
+        <option value="">Load an example…</option>
+        <option value="hello">Hello world</option>
+        <option value="styled">Styled page</option>
+        <option value="links">Footer &amp; links</option>
+      </select>
+      <button id="openBtn" title="Open the rendered page in a new tab">Open in new tab ↗</button>
+      <button id="runBtn" class="run">Run ▸</button>
+    </div>
+  </header>
+
+  <div id="status" class="status">Ready.</div>
+
+  <main>
+    <section class="pane">
+      <div class="pane-head">
+        <span>code.simplang</span>
+        <span>⌘/Ctrl + Enter to run</span>
+      </div>
+      <div class="editor-wrap">
+        <pre id="gutter" class="gutter">1</pre>
+        <textarea id="code" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+      </div>
+    </section>
+
+    <section class="pane">
+      <div class="pane-head">
+        <span>output</span>
+        <span id="pageTitle">rendered output</span>
+      </div>
+      <div class="output-frame">
+        <iframe id="output" title="SimpLang rendered output" sandbox="allow-scripts allow-same-origin"></iframe>
+      </div>
+    </section>
+  </main>
+
+  <details>
+    <summary>Command reference</summary>
+    <div class="ref-body">
+      <div class="ref-item"><code>&lt;simplang&gt;</code><p>Required document start</p></div>
+      <div class="ref-item"><code>&lt;text&gt;</code><p>Creates text</p></div>
+      <div class="ref-item"><code>&lt;media&gt;</code><p>Displays an image</p></div>
+      <div class="ref-item"><code>&lt;c(color)&gt;</code><p>Text color</p></div>
+      <div class="ref-item"><code>&lt;cbg(color)&gt;</code><p>Page background color</p></div>
+      <div class="ref-item"><code>&lt;bg&gt;</code><p>Page background image</p></div>
+      <div class="ref-item"><code>&lt;hlink&gt;</code><p>Text or image (url)</p></div>
+      <div class="ref-item"><code>&lt;lb&gt;</code><p>Line break, no closing tag</p></div>
+      <div class="ref-item"><code>&lt;al&gt; &lt;am&gt; &lt;ar&gt;</code><p>Left / center / right align</p></div>
+      <div class="ref-item"><code>&lt;ftr&gt;</code><p>Footer, rendered in place</p></div>
+      <div class="ref-item"><code>&lt;btxt&gt; &lt;itxt&gt; &lt;utxt&gt;</code><p>Bold / italic / underline</p></div>
+      <div class="ref-item"><code>&lt;size(%)&gt;</code><p>Scales content</p></div>
+      <div class="ref-item"><code>&lt;title&gt;</code><p>Browser tab title</p></div>
+      <div class="ref-item"><code>// comment</code><p>Single-line only, ignored</p></div>
+    </div>
+  </details>
+
+  <div class="deploy">
+    To publish: save this file as <code>index.html</code>, push it to a GitHub repository, then turn on
+    <code>Settings → Pages → Deploy from branch</code>. Your SimpLang editor will be live at
+    <code>https://&lt;username&gt;.github.io/&lt;repo&gt;</code>.
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- comment stripping (":" guard keeps "https://" intact) ---------- */
+  function stripComments(src){
+    return src.split("\n").map(function(line){
+      for (var i = 0; i < line.length - 1; i++){
+        if (line[i] === "/" && line[i+1] === "/"){
+          if (i === 0 || line[i-1] !== ":") return line.slice(0, i);
+        }
+      }
+      return line;
+    }).join("\n");
+  }
+
+  /* ---------- parser ---------- */
+  var SELF_CLOSING = { lb: true };
+
+  function parseSimpLang(source){
+    var cleaned = stripComments(source);
+    if (!/^\s*<\s*simplang\s*>/i.test(cleaned)){
+      throw new Error("Document must start with <simplang>.");
+    }
+
+    var tagRe = /<\/?\s*([a-zA-Z]+)\s*(\([^)]*\))?\s*>/g;
+    var root = { tag: "root", param: null, children: [] };
+    var stack = [root];
+    var lastIndex = 0, match;
+
+    function pushText(text){
+      if (text === "") return;
+      stack[stack.length - 1].children.push({ type: "text", value: text });
+    }
+
+    while ((match = tagRe.exec(cleaned)) !== null){
+      pushText(cleaned.slice(lastIndex, match.index));
+      lastIndex = tagRe.lastIndex;
+
+      var raw = match[0];
+      var isClosing = raw.indexOf("</") === 0;
+      var tagName = match[1].toLowerCase();
+      var param = match[2] ? match[2].slice(1, -1).trim() : null;
+
+      if (tagName === "simplang"){ continue; }
+
+      if (isClosing){
+        if (stack.length <= 1){
+          throw new Error("Found </" + tagName + "> with no matching open tag.");
+        }
+        var top = stack[stack.length - 1];
+        if (top.tag !== tagName){
+          throw new Error("Expected </" + top.tag + "> but found </" + tagName + ">.");
+        }
+        stack.pop();
+        continue;
+      }
+
+      var node = { tag: tagName, param: param, children: [] };
+      stack[stack.length - 1].children.push(node);
+      if (!SELF_CLOSING[tagName]) stack.push(node);
+    }
+    pushText(cleaned.slice(lastIndex));
+
+    if (stack.length > 1){
+      throw new Error("Tag <" + stack[stack.length - 1].tag + "> was never closed.");
+    }
+    return root;
+  }
+
+  /* ---------- renderer ---------- */
+  function escapeHtml(s){
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+  function flattenText(node){
+    return node.children.map(function(c){ return c.type === "text" ? c.value : ""; }).join("");
+  }
+
+  function renderNode(node, state){
+    if (node.type === "text") return escapeHtml(node.value);
+    var kids = function(){ return node.children.map(function(c){ return renderNode(c, state); }).join(""); };
+
+    switch (node.tag){
+      case "root": return kids();
+      case "text": return '<span class="sl-text">' + kids() + "</span>";
+      case "media": {
+        var src = flattenText(node).trim();
+        return '<img src="' + escapeHtml(src) + '" alt="" class="sl-media">';
+      }
+      case "c": {
+        var color = (node.param || "inherit").trim();
+        return '<span style="color:' + escapeHtml(color) + '">' + kids() + "</span>";
+      }
+      case "cbg": {
+        state.bgColor = (node.param || "").trim();
+        return kids();
+      }
+      case "bg": {
+        state.bgImage = flattenText(node).trim();
+        return "";
+      }
+      case "hlink": {
+        var kidsCopy = node.children.slice();
+        var url = "";
+        for (var i = kidsCopy.length - 1; i >= 0; i--){
+          if (kidsCopy[i].type === "text"){
+            var m = kidsCopy[i].value.match(/\(([^)]+)\)\s*$/);
+            if (m){
+              url = m[1].trim();
+              kidsCopy[i] = { type: "text", value: kidsCopy[i].value.slice(0, m.index) };
+            }
+            break;
+          } else {
+            break;
+          }
+        }
+        var inner = kidsCopy.map(function(c){ return renderNode(c, state); }).join("");
+        var isMedia = node.children.some(function(c){ return c.tag === "media"; });
+        return '<a href="' + escapeHtml(url) + '" class="sl-link' + (isMedia ? " sl-link-media" : "") +
+               '" target="_blank" rel="noopener">' + inner + "</a>";
+      }
+      case "lb": return "<br>";
+      case "al": return '<div class="sl-align sl-align-left">' + kids() + "</div>";
+      case "am": return '<div class="sl-align sl-align-center">' + kids() + "</div>";
+      case "ar": return '<div class="sl-align sl-align-right">' + kids() + "</div>";
+      case "ftr": return '<footer class="sl-footer">' + kids() + "</footer>";
+      case "btxt": return "<b>" + kids() + "</b>";
+      case "itxt": return "<i>" + kids() + "</i>";
+      case "utxt": return "<u>" + kids() + "</u>";
+      case "size": {
+        var pct = parseFloat(node.param);
+        if (isNaN(pct)) pct = 100;
+        return '<span class="sl-size" style="transform:scale(' + (pct / 100) + ')">' + kids() + "</span>";
+      }
+      case "title": {
+        state.title = flattenText(node).trim() || state.title;
+        return "";
+      }
+      default:
+        return kids();
+    }
+  }
+
+  function buildPage(source){
+    var root = parseSimpLang(source);
+    var state = { title: "SimpLang Page", bgColor: null, bgImage: null };
+    var body = renderNode(root, state);
+
+    var bg = [];
+    if (state.bgColor) bg.push("background-color:" + state.bgColor);
+    if (state.bgImage) bg.push(
+      "background-image:url('" + state.bgImage.replace(/'/g, "\\'") + "')",
+      "background-size:cover", "background-position:center", "background-repeat:no-repeat"
+    );
+
+    var baseHref = location.href.replace(/[^\/]*$/, "");
+
+    var html = "<!doctype html><html><head><meta charset='utf-8'>" +
+      "<base href='" + baseHref + "'>" +
+      "<title>" + escapeHtml(state.title) + "</title>" +
+      "<style>" +
+        "html,body{margin:0;padding:24px;font-family:Georgia,serif;font-size:17px;line-height:1.5;color:#111;" + bg.join(";") + "}" +
+        ".sl-align{width:100%;}" +
+        ".sl-align-left{text-align:left;}" +
+        ".sl-align-center{text-align:center;}" +
+        ".sl-align-right{text-align:right;}" +
+        ".sl-media{max-width:100%;}" +
+        ".sl-size{display:inline-block;transform-origin:top left;}" +
+        ".sl-link{color:#2b5fd9;text-decoration:underline;}" +
+        ".sl-link-media img{outline:10px solid #2b5fd9;}" +
+        "footer.sl-footer{margin-top:24px;padding-top:12px;border-top:1px solid rgba(0,0,0,.15);font-size:.9em;opacity:.8;}" +
+      "</style></head><body>" + body + "</body></html>";
+
+    return { html: html, title: state.title };
+  }
+
+  /* ---------- UI wiring ---------- */
+  var codeEl = document.getElementById("code");
+  var gutterEl = document.getElementById("gutter");
+  var statusEl = document.getElementById("status");
+  var outputEl = document.getElementById("output");
+  var pageTitleEl = document.getElementById("pageTitle");
+  var examplesEl = document.getElementById("examples");
+  var runBtn = document.getElementById("runBtn");
+  var openBtn = document.getElementById("openBtn");
+  var lastHtml = null;
+  var lastBlobUrl = null;
+
+  var EXAMPLES = {
+    hello:
+"<simplang>\n\n<title>Hello</title>\n\n<text>Hello, world!</text>\n",
+
+    styled:
+"<simplang>\n\n<title>My SimpLang Website</title>\n\n<cbg(#111111)></cbg>\n\n<am>\n\n    <c(#FF00FF)>\n        <btxt>\n            <text>Welcome to my website!</text>\n        </btxt>\n    </c>\n\n    <lb>\n\n    <text>\n        This is made entirely with SimpLang.\n    </text>\n\n    <lb>\n\n    <size(60%)>\n        <media>https://picsum.photos/seed/simplang/500/320</media>\n    </size>\n\n    <lb>\n\n    <hlink>Visit Google (https://google.com)</hlink>\n\n</am>\n\n<ftr>\n    <text>My SimpLang website</text>\n</ftr>\n",
+
+    links:
+"<simplang>\n\n<title>Footer & Links</title>\n\n<cbg(#F4F1EA)></cbg>\n\n<al>\n    <text>A short page about <c(#B23A48)><btxt>alignment</btxt></c> and links.</text>\n    <lb>\n    <hlink>Read the docs (https://example.com/docs)</hlink>\n</al>\n\n<ar>\n    <itxt><text>Right-aligned, for balance.</text></itxt>\n</ar>\n\n<ftr>\n    <utxt><text>Built with SimpLang</text></utxt>\n</ftr>\n"
+  };
+
+  function updateGutter(){
+    var lines = codeEl.value.split("\n").length;
+    var out = [];
+    for (var i = 1; i <= lines; i++) out.push(i);
+    gutterEl.textContent = out.join("\n");
+    gutterEl.scrollTop = codeEl.scrollTop;
+  }
+  codeEl.addEventListener("scroll", function(){ gutterEl.scrollTop = codeEl.scrollTop; });
+  codeEl.addEventListener("input", function(){ updateGutter(); scheduleAutoRun(); saveDraft(); });
+  codeEl.addEventListener("keydown", function(e){
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter"){ e.preventDefault(); run(); }
+    if (e.key === "Tab"){
+      e.preventDefault();
+      var s = codeEl.selectionStart, en = codeEl.selectionEnd;
+      codeEl.value = codeEl.value.slice(0, s) + "    " + codeEl.value.slice(en);
+      codeEl.selectionStart = codeEl.selectionEnd = s + 4;
+      updateGutter();
+    }
+  });
+
+  var autoRunTimer = null;
+  function scheduleAutoRun(){
+    clearTimeout(autoRunTimer);
+    autoRunTimer = setTimeout(run, 600);
+  }
+
+  function saveDraft(){
+    try { localStorage.setItem("simplang-draft", codeEl.value); } catch (e) {}
+  }
+  function loadDraft(){
+    try { return localStorage.getItem("simplang-draft"); } catch (e) { return null; }
+  }
+
+  function setStatus(kind, msg){
+    statusEl.className = "status " + kind;
+    statusEl.textContent = msg;
+  }
+
+  function run(){
+    try {
+      var result = buildPage(codeEl.value);
+      outputEl.srcdoc = result.html;
+      pageTitleEl.textContent = result.title;
+      lastHtml = result.html;
+      setStatus("ok", "Rendered \u2022 " + result.title);
+    } catch (err){
+      setStatus("err", "Error: " + err.message);
+    }
+  }
+
+  examplesEl.addEventListener("change", function(){
+    var key = examplesEl.value;
+    if (!key) return;
+    codeEl.value = EXAMPLES[key];
+    updateGutter();
+    saveDraft();
+    run();
+    examplesEl.value = "";
+  });
+  runBtn.addEventListener("click", run);
+  openBtn.addEventListener("click", function(){
+    if (!lastHtml){ setStatus("err", "Nothing to open yet \u2014 run your code first."); return; }
+    if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
+    var blob = new Blob([lastHtml], { type: "text/html" });
+    lastBlobUrl = URL.createObjectURL(blob);
+    window.open(lastBlobUrl, "_blank");
+  });
+
+  /* ---------- init ---------- */
+  codeEl.value = loadDraft() || EXAMPLES.styled;
+  updateGutter();
+  run();
+})();
+</script>
+</body>
+</html>
